@@ -1,4 +1,5 @@
 const Product = require('../models/product')
+const mongoDb = require('mongodb')
 exports.getAddProduct = (req, res, next) => {
     res.render('admin/edit-product', {
         pageTitle: 'Add Product',
@@ -13,19 +14,19 @@ exports.getEditProduct = (req, res, next) => {
         return res.redirect('/')
     }
     const { productId } = req.params
-    req.user.getProducts({where: {id:productId}})
-    .then(([product]) => {
-        if (!product) {
-            return res.redirect('/')
-        }
-        res.render('admin/edit-product', {
-            pageTitle: 'Edit Product',
-            path: '/admin/edit-product',
-            formPage: true,
-            editing: true,
-            product
+    Product.findById(productId)
+        .then((product) => {
+            if (!product) {
+                return res.redirect('/')
+            }
+            res.render('admin/edit-product', {
+                pageTitle: 'Edit Product',
+                path: '/admin/edit-product',
+                formPage: true,
+                editing: true,
+                product
+            })
         })
-    })
     // Product.findByPk(productId)
     // .then(product => {
     //     if (!product) {
@@ -43,15 +44,20 @@ exports.getEditProduct = (req, res, next) => {
 
 exports.postEditProduct = (req, res, next) => {
     const { productId, title, price, description, imageUrl } = req.body
-    Product.findByPk(productId).then(product => {
-        product.title = title;
-        product.price = price;
-        product.description = description;
-        product.imageUrl = imageUrl;
-        return product.save()
-    }).then(() => {
-        res.redirect('/admin/products')
-    }).catch(console.log)
+    const prod = new Product(title, price, description, imageUrl, productId)
+    prod.save()
+        .then(() => {
+            res.redirect('/admin/products')
+        }).catch(console.log)
+    // Product.findByPk(productId).then(product => {
+    //     product.title = title;
+    //     product.price = price;
+    //     product.description = description;
+    //     product.imageUrl = imageUrl;
+    //     return product.save()
+    // }).then(() => {
+    //     res.redirect('/admin/products')
+    // }).catch(console.log)
     // const updatedProduct = new Product(productId, title, imageUrl, description, price)
     // updatedProduct.save()
 
@@ -59,18 +65,19 @@ exports.postEditProduct = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
     const { productId } = req.body
-    Product.findByPk(productId).then(product => {
-        return product.destroy()
-    }).then(() => {
-        res.redirect('/admin/products')
-    }).catch(console.log)
+    Product
+        .deleteById(productId)
+        .then(() => {
+            console.log('Deleted Product');
+            res.redirect('/admin/products')
+        }).catch(console.log)
     // Product.deleteById(productId)
 }
 
 exports.postAddProduct = (req, res, next) => {
     const { imageUrl, title, price, description } = req.body
-    req.user.createProduct({ title, price, description, imageUrl })
-        // Product.create({ title, price, description, imageUrl, UserId: req.user.id })
+    const product = new Product(title, price, description, imageUrl, null, req.user._id)
+    product.save()
         .then((result) => {
             console.log('Created Product');
             res.redirect('/admin/products')
@@ -78,15 +85,15 @@ exports.postAddProduct = (req, res, next) => {
 }
 
 exports.getProducts = (req, res, next) => {
-    req.user.getProducts()
-    // Product.findAll()
-    .then((products) => {
-        res.render('admin/products', {
-            prods: products,
-            pageTitle: "Admin product",
-            path: '/admin/products',
-            hasProduct: products.length > 0,
-            productPage: true
-        })
-    }).catch(console.log)
+    // req.user.getProducts()
+    Product.fetchAll()
+        .then((products) => {
+            res.render('admin/products', {
+                prods: products,
+                pageTitle: "Admin product",
+                path: '/admin/products',
+                hasProduct: products.length > 0,
+                productPage: true
+            })
+        }).catch(console.log)
 }
